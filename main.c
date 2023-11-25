@@ -3,10 +3,20 @@
 #include <string.h>
 
 
+typedef struct{
+    char nomeDeUsuario[50];
+    char senhaDoUsuario[50];
+    char cpfDoUsuario[50];
+    char emailDoUsuario[50];
+    char dataDeNascimento[15];
+
+} Cliente;
+
 
 void criptografarSenha(char *senha){
-    for (int i = 0; senha[i] != '\0'; i++){
-        senha[i] += 3;
+    while(*senha) {
+        (*senha)++;
+        senha++;
     }
 }
 
@@ -34,7 +44,6 @@ int Login (struct Industria *industria){
     char insiraUsuario[50];
     char insiraSenha[50];
 
-    system("cls");
     printf("Usuário: ");
     scanf("%s", insiraUsuario);
 
@@ -54,6 +63,60 @@ int industriaExiste( struct Industria *industria, int contIndustria, char *usuar
             return 1;
         }
     }
+    return 0;
+}
+
+
+void cadastrarUsuario(Cliente **clientes, int *numClientes){
+    Cliente novoCliente;
+
+    printf("Nome de usuário: ");
+    scanf("%s", novoCliente.nomeDeUsuario);
+
+    printf("Senha: ");
+    scanf("%s", novoCliente.senhaDoUsuario);
+    criptografarSenha(novoCliente.senhaDoUsuario);
+
+    printf("E-mail: ");
+    scanf("%s", novoCliente.emailDoUsuario);
+
+    printf("CPF: ");
+    scanf("%s", novoCliente.cpfDoUsuario);
+
+    printf("Data de Nascimento: ");
+    scanf("%s", novoCliente.dataDeNascimento);
+
+    (*numClientes)++;
+    *clientes = (Cliente *)realloc(*clientes, (*numClientes) * sizeof(Cliente));
+    if (*clientes == NULL){
+        fprintf(stderr, "Erro ao alocar memória. \n");
+        exit(EXIT_FAILURE);
+    }
+    (*clientes)[*numClientes - 1] = novoCliente;
+
+    printf("Usuário cadastrado com sucesso!\n");
+
+}
+
+int fazerLogin(Cliente *clientes, int numClientes){
+    char nomeDeUsuario[50];
+    char senha[50];
+
+    printf("Usuário: ");
+    scanf("%s", nomeDeUsuario);
+
+    printf("Senha: ");
+    scanf("%s", senha);
+    criptografarSenha(senha);
+
+    for(int i = 0; i < numClientes; i++) {
+        if(strcmp(clientes[i].nomeDeUsuario, nomeDeUsuario) == 0 &&
+        strcmp(clientes[i].senhaDoUsuario, senha) == 0){
+            printf("Login bem-sucedido!\n");
+            return 1;
+}
+    }
+    printf("Nome de usuário ou senha incorretos.\n");
     return 0;
 }
 
@@ -107,6 +170,8 @@ void registrarDados(struct Industria *industria){
 
 int main() {
     struct Industria industria;
+    Cliente *clientes = NULL;
+    int numClientes = 0;
     int escolha;
 
     strcpy(industria.usuario, "usuario");
@@ -138,7 +203,7 @@ int main() {
                 registrarDados(&industria);
                 break;
             case 3:
-                //cadastrar novo usuario
+                fazerLogin(clientes, numClientes);
                 break;
             case 4:
                 //cadastrar funcionário
@@ -154,6 +219,8 @@ int main() {
         }
 
     } while(escolha != 0);
+
+    free(clientes);
 
     return 0;
 }

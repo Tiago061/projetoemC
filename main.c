@@ -1,50 +1,63 @@
 #include <stdio.h>
 #include <string.h>
-#include <openssl/aes.h>
-#include <openssl/rand.h>
+#include <stdlib.h>
 
-#define KEY_SIZE 256
-#define BLOCK_SIZE 16
+#define MAX_CLIENTES 100
+#define KEY_SHIFT 3
 
-// Definindo a estrutura para armazenar os dados da indústria
 struct Industria {
     char responsavel[100];
     char nomeEmpresa[100];
     char cnpj[15];
     char razaoSocial[100];
-    char nomeFantasia[100];
     char telefone[15];
     char endereco[200];
     char email[100];
     char dataAbertura[11];
-    // Outros dados relevantes para cadastro podem ser adicionados aqui
+    float insumosTratadosSemestral;
+    float gastosMensais;
 };
 
-// Estrutura para armazenar dados criptografados
 struct CryptoData {
-    unsigned char encryptedData[256]; // Tamanho arbitrário, ajuste conforme necessário
+    char encryptedData[sizeof(struct Industria)];
 };
 
-// Função para gerar uma chave aleatória
-void generateKey(unsigned char *key) {
-    RAND_bytes(key, KEY_SIZE / 8);
+void criptografar(struct Industria *dados, int shift) {
+    int i;
+
+    for (i = 0; i < sizeof(struct Industria); i++) {
+        if (dados->responsavel[i] != '\0') {
+            dados->responsavel[i] += shift;
+        }
+
+        if (dados->nomeEmpresa[i] != '\0') {
+            dados->nomeEmpresa[i] += shift;
+        }
+
+        if (dados->cnpj[i] != '\0') {
+            dados->cnpj[i] += shift;
+        }
+    }
 }
 
-// Função para criptografar os dados usando AES
-void encrypt(const unsigned char *plaintext, int plaintext_len, const unsigned char *key, unsigned char *ciphertext) {
-    AES_KEY aesKey;
-    AES_set_encrypt_key(key, KEY_SIZE, &aesKey);
-    AES_encrypt(plaintext, ciphertext, &aesKey);
+void descriptografar(struct Industria *dados, int shift) {
+    int i;
+
+    for (i = 0; i < sizeof(struct Industria); i++) {
+        if (dados->responsavel[i] != '\0') {
+            dados->responsavel[i] -= shift;
+        }
+
+        if (dados->nomeEmpresa[i] != '\0') {
+            dados->nomeEmpresa[i] -= shift;
+        }
+
+        if (dados->cnpj[i] != '\0') {
+            dados->cnpj[i] -= shift;
+        }
+    }
 }
 
-// Função para descriptografar os dados usando AES
-void decrypt(const unsigned char *ciphertext, int ciphertext_len, const unsigned char *key, unsigned char *plaintext) {
-    AES_KEY aesKey;
-    AES_set_decrypt_key(key, KEY_SIZE, &aesKey);
-    AES_decrypt(ciphertext, plaintext, &aesKey);
-}
-
-// Função para salvar dados criptografados em um arquivo
 void salvarDados(struct CryptoData *cryptoData) {
     FILE *arquivo;
     arquivo = fopen("dados.dat", "wb");
@@ -52,7 +65,6 @@ void salvarDados(struct CryptoData *cryptoData) {
     fclose(arquivo);
 }
 
-// Função para ler dados criptografados de um arquivo
 void lerDados(struct CryptoData *cryptoData) {
     FILE *arquivo;
     arquivo = fopen("dados.dat", "rb");
@@ -60,7 +72,6 @@ void lerDados(struct CryptoData *cryptoData) {
     fclose(arquivo);
 }
 
-// Função para realizar o login
 int realizarLogin() {
     char usuario[20];
     char senha[20];
@@ -72,38 +83,27 @@ int realizarLogin() {
     printf("Informe a senha: ");
     scanf("%s", senha);
 
-    // Lógica simples de autenticação (usuário e senha hardcoded)
-    if (strcmp(usuario, "admin") == 0 && strcmp(senha, "senha123") == 0) {
+    if (strcmp(usuario, "unip") == 0 && strcmp(senha, "1234") == 0) {
         printf("Login bem-sucedido!\n");
-        return 1; // Retorna 1 para indicar que o login foi bem-sucedido
+        return 1;
     } else {
         printf("Usuário ou senha incorretos. Tente novamente.\n");
-        return 0; // Retorna 0 para indicar que o login falhou
+        return 0;
     }
 }
 
-// Função para exibir o menu principal
-void exibirMenu(struct Industria *industria, unsigned char *encryptionKey);
+void gerarRelatorio(struct Industria *industria);
+void exibirMenu(struct Industria *industria);
+void exibirMenuInicial();
+void processarEscolhaMenu(struct Industria *industria, int escolha);
+void exibirRelatorios(struct Industria *industria);
+void salvarRelatorioEmArquivo(int escolhaRelatorio, struct Industria *industria);
+void cadastrarIndustria(struct Industria *industria);
+void atualizarDadosMensais(struct Industria *industria);
+float calcularTotalInsumosTratados(struct Industria *industria);
+float calcularTotalGastosMensais(struct Industria *industria);
 
-// Função para exibir o menu inicial
-void exibirMenuInicial() {
-    printf("\n===== Menu Inicial =====\n");
-    printf("1. Cadastro de Indústria\n");
-    printf("2. Relatórios\n");
-    printf("3. Sair\n");
-}
-
-// Função para processar a escolha do menu
-void processarEscolhaMenu(struct Industria *industria, unsigned char *encryptionKey, int escolha);
-
-// Função para exibir relatórios
-void exibirRelatorios(struct Industria *industria, unsigned char *encryptionKey);
-
-// Função para salvar relatórios em arquivo TXT
-void salvarRelatorioEmArquivo(int escolhaRelatorio, struct Industria *industria, unsigned char *encryptionKey);
-
-// Função para cadastrar os dados da indústria
-void cadastrarIndustria(struct Industria *industria, unsigned char *encryptionKey) {
+void cadastrarIndustria(struct Industria *industria) {
     printf("\nCadastro da Indústria\n");
 
     printf("Responsável: ");
@@ -118,14 +118,12 @@ void cadastrarIndustria(struct Industria *industria, unsigned char *encryptionKe
     printf("Razão Social: ");
     scanf("%s", industria->razaoSocial);
 
-    printf("Nome Fantasia: ");
-    scanf("%s", industria->nomeFantasia);
-
     printf("Telefone: ");
     scanf("%s", industria->telefone);
 
-    printf("Endereço: ");
-    scanf("%s", industria->endereco);
+    printf("Endereço:\n");
+    printf("Endereço(Completo):");
+    scanf(" %99[^\n]", industria->endereco);
 
     printf("Email: ");
     scanf("%s", industria->email);
@@ -133,39 +131,49 @@ void cadastrarIndustria(struct Industria *industria, unsigned char *encryptionKe
     printf("Data de Abertura: ");
     scanf("%s", industria->dataAbertura);
 
-    // Adicione aqui as instruções para os demais campos do cadastro
+    criptografar(industria, KEY_SHIFT);
 
-    // Criptografar os dados sensíveis antes de salvar
     struct CryptoData cryptoData;
-    encrypt((const unsigned char *)industria, sizeof(struct Industria), encryptionKey, cryptoData.encryptedData);
+    memcpy(cryptoData.encryptedData, industria, sizeof(struct Industria));
 
     salvarDados(&cryptoData);
 
     printf("\nCadastro concluído com sucesso!\n");
-
-    // Gera relatórios
-    gerarRelatorio(industria, encryptionKey);
 }
 
-// Função para calcular o total de insumos tratados semestralmente
+
+void atualizarDadosMensais(struct Industria *industria) {
+    printf("\nAtualização Mensal\n");
+
+    printf("Quantidade de Resíduos Ambientais Tratados: ");
+    scanf("%f", &industria->insumosTratadosSemestral);
+
+    printf("Valor Estimado de Custo: ");
+    scanf("%f", &industria->gastosMensais);
+
+    printf("\nAtualização concluída com sucesso!\n");
+
+    gerarRelatorio(industria);
+}
+
 float calcularTotalInsumosTratados(struct Industria *industria) {
-    // Lógica para calcular o total de insumos tratados
-    // Implemente conforme necessário
-    return 1000.0; // Exemplo, substitua pela lógica real
+    return industria->insumosTratadosSemestral;
 }
 
-// Função para calcular o total de gastos mensais
 float calcularTotalGastosMensais(struct Industria *industria) {
-    // Lógica para calcular o total de gastos mensais
-    // Implemente conforme necessário
-    return 5000.0; // Exemplo, substitua pela lógica real
+    return industria->gastosMensais;
+}
+void exibirMenuInicial() {
+    printf("\n===== Menu Inicial =====\n");
+    printf("1. Cadastro de Indústria\n");
+    printf("2. Atualização Mensal\n");
+    printf("3. Relatórios\n");
+    printf("4. Sair\n");
 }
 
-// Função para gerar relatórios individuais
-void gerarRelatorio(struct Industria *industria, unsigned char *encryptionKey) {
+void gerarRelatorio(struct Industria *industria) {
     printf("\nGerando Relatórios Individuais\n");
 
-    // Calcular e exibir relatórios individuais
     float totalInsumosTratados = calcularTotalInsumosTratados(industria);
     float totalGastosMensais = calcularTotalGastosMensais(industria);
 
@@ -173,57 +181,38 @@ void gerarRelatorio(struct Industria *industria, unsigned char *encryptionKey) {
     printf("Total de Gastos Mensais: %.2f\n", totalGastosMensais);
 }
 
-// Função para gerar relatórios globais
-void gerarRelatorioGlobal(struct Industria *industria, unsigned char *encryptionKey) {
-    printf("\nGerando Relatórios Globais\n");
-
-    // Adicione aqui a lógica para gerar relatórios globais
-    // Pode incluir informações consolidadas de várias indústrias
-    // por exemplo, médias, totais, etc.
-}
-
-// Função para exibir relatórios
-void exibirRelatorios(struct Industria *industria, unsigned char *encryptionKey) {
+void exibirRelatorios(struct Industria *industria) {
     printf("\n===== Relatórios =====\n");
 
     int escolhaRelatorio;
     printf("Escolha o tipo de relatório:\n");
     printf("1. Relatório Individual\n");
-    printf("2. Relatório Global\n");
-    printf("3. Voltar ao Menu Inicial\n");
+    printf("2. Voltar ao Menu Inicial\n");
     printf("Opção: ");
     scanf("%d", &escolhaRelatorio);
 
     switch (escolhaRelatorio) {
         case 1:
-            gerarRelatorio(industria, encryptionKey);
+            gerarRelatorio(industria);
             break;
-        case 2:
-            gerarRelatorioGlobal(industria, encryptionKey);
-            break;
-        case 3:
-            return; // Retorna ao menu inicial
         default:
             printf("Opção inválida. Tente novamente.\n");
             return;
     }
 
-    // Opção de salvar o relatório em arquivo TXT
     char salvarRelatorio;
     printf("Deseja salvar o relatório em um arquivo TXT? (S/N): ");
     scanf(" %c", &salvarRelatorio);
 
     if (salvarRelatorio == 'S' || salvarRelatorio == 's') {
-        salvarRelatorioEmArquivo(escolhaRelatorio, industria, encryptionKey);
+        salvarRelatorioEmArquivo(escolhaRelatorio, industria);
     }
 }
 
-// Função para salvar relatórios em arquivo TXT
-void salvarRelatorioEmArquivo(int escolhaRelatorio, struct Industria *industria, unsigned char *encryptionKey) {
+void salvarRelatorioEmArquivo(int escolhaRelatorio, struct Industria *industria) {
     FILE *arquivo;
     char nomeArquivo[50];
 
-    // Escolher o nome do arquivo
     printf("Digite o nome do arquivo (inclua a extensão .txt): ");
     scanf("%s", nomeArquivo);
 
@@ -234,26 +223,27 @@ void salvarRelatorioEmArquivo(int escolhaRelatorio, struct Industria *industria,
         return;
     }
 
-    // Redirecionar a saída para o arquivo
-    fclose(stdout);
-    fopen(nomeArquivo, "w");
+    fprintf(arquivo, "Relatório:\n");
+    fprintf(arquivo, "========================================\n");
 
     // Escrever o relatório no arquivo
     if (escolhaRelatorio == 1) {
-        gerarRelatorio(industria, encryptionKey);
+        fprintf(arquivo, "Relatório Individual:\n");
+        fprintf(arquivo, "Total de Insumos Tratados Semestralmente: %.2f\n", calcularTotalInsumosTratados(industria));
+        fprintf(arquivo, "Total de Gastos Mensais: %.2f\n", calcularTotalGastosMensais(industria));
     } else if (escolhaRelatorio == 2) {
-        gerarRelatorioGlobal(industria, encryptionKey);
+        fprintf(arquivo, "Relatório Global:\n");
     }
 
-    // Restaurar a saída padrão
-    fclose(stdout);
-    fopen("/dev/tty", "w");
+    fprintf(arquivo, "========================================\n");
+    fclose(arquivo);
 
     printf("Relatório salvo em %s\n", nomeArquivo);
 }
 
-// Função para exibir o menu principal
-void exibirMenu(struct Industria *industria, unsigned char *encryptionKey) {
+
+
+void exibirMenu(struct Industria *industria) {
     int escolha;
 
     do {
@@ -261,21 +251,23 @@ void exibirMenu(struct Industria *industria, unsigned char *encryptionKey) {
         printf("Escolha uma opção: ");
         scanf("%d", &escolha);
 
-        processarEscolhaMenu(industria, encryptionKey, escolha);
+        processarEscolhaMenu(industria, escolha);
 
-    } while (escolha != 3);
+    } while (escolha != 4);
 }
 
-// Função para processar a escolha do menu
-void processarEscolhaMenu(struct Industria *industria, unsigned char *encryptionKey, int escolha) {
+void processarEscolhaMenu(struct Industria *industria, int escolha) {
     switch (escolha) {
         case 1:
-            cadastrarIndustria(industria, encryptionKey);
+            cadastrarIndustria(industria);
             break;
         case 2:
-            exibirRelatorios(industria, encryptionKey);
+            atualizarDadosMensais(industria);
             break;
         case 3:
+            exibirRelatorios(industria);
+            break;
+        case 4:
             printf("Saindo do sistema...\n");
             break;
         default:
@@ -283,28 +275,17 @@ void processarEscolhaMenu(struct Industria *industria, unsigned char *encryption
     }
 }
 
-// Função principal
 int main() {
     struct Industria industria;
     struct CryptoData cryptoData;
-    unsigned char encryptionKey[KEY_SIZE / 8];
 
-    // Realiza o login
     int loginSucesso = realizarLogin();
 
-    // Se o login for bem-sucedido, permite acessar o sistema
     if (loginSucesso) {
-        // Gera uma chave aleatória para criptografia
-        generateKey(encryptionKey);
-
-        // Lê dados previamente cadastrados, se existirem
         lerDados(&cryptoData);
-
-        // Descriptografa os dados para exibição ou atualização
-        decrypt(cryptoData.encryptedData, sizeof(struct Industria), encryptionKey, (unsigned char *)&industria);
-
-        // Exibe o menu inicial
-        exibirMenu(&industria, encryptionKey);
+        memcpy(&industria, cryptoData.encryptedData, sizeof(struct Industria));
+        descriptografar(&industria, KEY_SHIFT);
+        exibirMenu(&industria);
     }
 
     return 0;
